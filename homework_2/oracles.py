@@ -1,3 +1,8 @@
+import numpy as np
+import scipy
+from scipy.sparse import isspmatrix_dia
+
+
 class BaseSmoothOracle(object):
     """
     Base class for implementation of oracles.
@@ -34,16 +39,16 @@ class QuadraticOracle(BaseSmoothOracle):
     """
     
     def __init__(self, A, b):
-        if not scipy.sparse.isspmatrix_dia(A) and not np.allclose(A, A.T):
+        if not isspmatrix_dia(A) and not np.allclose(A, A.T):
             raise ValueError('A should be a symmetric matrix.')
         self.A = A
         self.b = b
 
     def func(self, x):
-        # your code here
+        return 0.5 * x.T.dot(self.A).dot(x) - self.b.T.dot(x)
 
     def grad(self, x):
-        # your code here
+        return self.A.dot(x) - self.b
 
         
 class LogRegL2Oracle(BaseSmoothOracle):
@@ -70,10 +75,14 @@ class LogRegL2Oracle(BaseSmoothOracle):
         self.regcoef = regcoef
 
     def func(self, x):
-        # your code here
+        m = len(self.b)
+        return (1 / m) * np.sum(np.log1p(np.exp(-self.b * self.matvec_Ax(x)))) + self.regcoef / 2 * (x ** 2).sum()
 
     def grad(self, x):
-        # your code here
+        m = self.b.shape[0]
+        sigm = 1 / (1 + np.exp(np.multiply(self.b, self.matvec_Ax(x))))
+        res = - 1 / m * self.matvec_ATx(np.multiply(sigm, self.b)) + self.regcoef * x
+        return res
 
 
 def create_log_reg_oracle(A, b, regcoef):
@@ -81,11 +90,10 @@ def create_log_reg_oracle(A, b, regcoef):
     Auxiliary function for creating logistic regression oracles.
         `oracle_type` must be either 'usual' or 'optimized'
     """
-    matvec_Ax = lambda x: x  # your code here
-    matvec_ATx = lambda x: x  # your code here
+    matvec_Ax = lambda x: A.dot(x)
+    matvec_ATx = lambda x: A.T.dot(x)
 
     def matmat_ATsA(s):
-        # your code here
-        return None
+        return A.T.dot(s).dot(A)
 
     return LogRegL2Oracle(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)

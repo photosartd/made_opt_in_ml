@@ -9,7 +9,7 @@ COLOR_GREEN = np.linspace(244, 188, 256) / 255.
 COLOR_BLUE = np.linspace(246, 203, 256) / 255.
 
 
-def plot_levels(func, xrange=None, yrange=None, levels=None):
+def plot_levels(func, plt, xrange=None, yrange=None, levels=None):
     """
     Plotting the contour lines of the function.
 
@@ -42,7 +42,7 @@ def plot_levels(func, xrange=None, yrange=None, levels=None):
     plt.grid()              
 
         
-def plot_trajectory(func, history, fit_axis=False, label=None, color='C1'):
+def plot_trajectory(func, plt, history, fit_axis=False, label=None, color='C1'):
     """
     Plotting the trajectory of a method. 
     Use after plot_levels(...).
@@ -64,5 +64,5 @@ def plot_trajectory(func, history, fit_axis=False, label=None, color='C1'):
         COEF = 1.5
         xrange = [-xmax * COEF, xmax * COEF]
         yrange = [-ymax * COEF, ymax * COEF]
-        plt.xlim(xrange)
-        plt.ylim(yrange)
+        plt.set_xlim(xrange)
+        plt.set_ylim(yrange)

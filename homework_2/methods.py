@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 from collections import defaultdict
 from scipy.optimize.linesearch import scalar_search_wolfe2
+from time import time
 
 
 class LineSearchTool(object):
@@ -74,9 +75,26 @@ class LineSearchTool(object):
         if self._method == 'Constant':
             return self.c
         elif self._method == 'Armijo':
-            # your code here
+            return self.armijo(oracle, x_k, d_k, previous_alpha or self.alpha_0)
         elif self._method == 'Wolfe':
-            # your code here
+            phi = lambda a: oracle.func(x_k + a * d_k)
+            derphi = lambda a: oracle.grad(x_k + a * d_k) @ d_k
+            phi0 = oracle.func(x_k)
+            derphi0 = - (oracle.grad(x_k) @ oracle.grad(x_k))
+            alpha, phi_star, phi0, derphi_star = scalar_search_wolfe2(phi, derphi, c1=self.c1, c2=self.c2)
+            if alpha is not None:
+                return alpha
+            else:
+                return self.armijo(oracle, x_k, d_k, previous_alpha or 1.0)
+
+    def armijo(self, oracle, x_k, d_k, alpha_0):
+        alpha = alpha_0
+        phi_0 = oracle.func_directional(x_k, d_k, 0)
+        derphi_0 = oracle.grad_directional(x_k, d_k, 0)
+        while oracle.func_directional(x_k, d_k, alpha) > \
+            phi_0 + self.c1 * alpha * derphi_0:
+            alpha /= 2
+        return alpha
 
 
 def get_line_search_tool(line_search_options=None):
@@ -126,4 +144,34 @@ class GradientDescent(object):
             - self.hist['x'] : list of np.arrays, containing the trajectory of the algorithm. ONLY STORE IF x.size <= 2
             - self.hist['x_star']: np.array containing x at last iteration
         """
-        # your code here
+        start_time = time()
+        x = self.x_0
+        self.grad_0_norm = (self.oracle.grad(self.x_0) ** 2).sum()
+        prev_alpha = None
+        for i in range(max_iter + 1):
+            f_x = self.oracle.func(x)
+            grad_f_x = self.oracle.grad(x)
+            grad_f_x_norm = np.sum(np.square(grad_f_x)) ** (1/2)
+            curr_time = time()
+            self.update_hist(curr_time - start_time,
+                             f_x,
+                             grad_f_x_norm,
+                             x
+                             )
+            if self.if_stop(grad_f_x_norm):
+                break
+            d_k = -grad_f_x
+            prev_alpha = self.line_search_tool.line_search(self.oracle, x_k=x, d_k=d_k, previous_alpha=prev_alpha)
+            x = x + prev_alpha * d_k
+        self.hist['x_star'] = x
+
+
+    def if_stop(self, grad_norm):
+        res = (grad_norm / (self.grad_0_norm + self.tolerance)) <= self.tolerance
+        return res
+
+    def update_hist(self, time, func, grad_norm, x):
+        self.hist['time'].append(time)
+        self.hist['func'].append(func)
+        self.hist['grad_norm'].append(grad_norm)
+        self.hist['x'].append(x)
